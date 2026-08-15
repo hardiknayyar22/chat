@@ -1,0 +1,18 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+.pytest_cache/
+
+# Keep the local index files in the repo structure but avoid committing generated secrets.
+indexes/*.index
+indexes/*.json
+indexes/*.pkl
+
+# Local policy PDFs are manually supplied by the user.
+data/policies/*.pdf
+!data/policies/.gitkeep
