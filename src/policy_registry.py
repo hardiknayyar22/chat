@@ -28,6 +28,20 @@ def build_policy_registry(policy_directory: Path, alias_map: Optional[Dict[str, 
         aliases = alias_map.get(canonical, [])
         alias_list = [a.strip() for a in aliases if a.strip()]
         alias_list.extend([canonical, pdf_path.stem])
+
+        if "PIP" in canonical.upper() or "PERFORMANCE IMPROVEMENT PLAN" in canonical.upper():
+            alias_list.extend(["PIP", "Performance Improvement Plan", "Performance Improvement Plan Policy"])
+
+        if "LEAVE" in canonical.upper() and "POLICY" in canonical.upper():
+            alias_list.extend([
+                "Leave Policy",
+                "HR Leave Policy",
+                "India Leave Policy",
+                "Leave and Holiday Policy",
+                "Comp Off Policy",
+                "LWP Policy",
+            ])
+
         alias_list = sorted(set(alias_list), key=lambda x: (x.lower() != canonical.lower(), x.lower()))
         registry[canonical] = {
             "canonical_name": canonical,

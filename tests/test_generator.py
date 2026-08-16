@@ -1,4 +1,24 @@
-from src.generator import remove_source_section
+from types import SimpleNamespace
+
+from src.generator import extract_text_from_gemini_response, remove_source_section
+
+
+def test_extract_text_from_gemini_response_ignores_non_text_parts():
+    response = SimpleNamespace(
+        candidates=[
+            SimpleNamespace(
+                content=SimpleNamespace(
+                    parts=[
+                        SimpleNamespace(text="First response text."),
+                        SimpleNamespace(text=None),
+                        SimpleNamespace(thought_signature="sig-123"),
+                    ]
+                )
+            )
+        ]
+    )
+
+    assert extract_text_from_gemini_response(response) == "First response text."
 
 
 def test_remove_source_section_from_answer_text():

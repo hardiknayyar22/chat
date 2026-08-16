@@ -24,8 +24,8 @@ def load_resources():
 
 registry, bundle = load_resources()
 
-st.title("Coforge India HR Policy Assistant")
-st.caption("AI-powered support for your HR policy questions.")
+st.title("Coforge HR Companion")
+st.caption("Your friendly HR policy guide for India policies and employee questions.")
 
 with st.sidebar:
     st.subheader("Available policies")

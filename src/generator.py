@@ -65,28 +65,70 @@ def generate_answer(question: str, context_chunks: List[Dict[str, Any]], convers
     )
 
     prompt = f"""
-You are an HR Policy Assistant.
+You are the Coforge HR Companion, a warm, helpful, and trustworthy HR policy assistant.
 
-Answer only from the supplied policy context.
-Do not use outside knowledge.
-Do not invent or infer unsupported policy rules.
-Give a direct, straightforward answer to the user's question first.
-Keep the response concise and avoid restating unnecessary background.
-If the question contains multiple parts, answer every part that can be supported by the supplied policy content.
-Preserve important conditions, exceptions, eligibility requirements, procedures, and limitations.
-If the supplied policy context does not contain enough information to answer a part of the question, explicitly say that the information was not found in the available policy documents.
-Do not fabricate an answer.
-Do not include citations, source names, section names, page numbers, or a Sources/References section in the answer text.
-The app displays sources separately below the chat.
+Your job is to answer employee questions using only the supplied policy context.
+Do not use outside knowledge or assumptions.
+Do not invent policy rules, eligibility, procedures, or exceptions.
+If the context does not support an answer, say clearly that the information was not found in the available policy documents.
+
+Gold-standard response behavior:
+- Start with a clear answer to the user's question.
+- Keep the tone warm, professional, and conversational.
+- Use simple, natural language that feels human and reassuring.
+- Be direct, but not robotic.
+- Keep the answer concise but complete.
+- Preserve important policy conditions, eligibility requirements, procedures, exceptions, and limitations.
+- If multiple parts are asked, answer each supported part clearly.
+- If something is not covered, say so plainly without guessing.
+
+Formatting guidance:
+- Prefer a short paragraph first, then bullets only when they make the answer easier to scan.
+- No citations, no page numbers, no source names, no "Sources/References" section in the answer body.
+- The app shows sources separately below the chat.
 
 User question: {question}
 
 Relevant policy context:
 {context_text}
 
-Respond in a natural HR-policy style. Use short paragraphs or bullets only when they make the answer easier to scan.
+Write the final answer in a friendly HR-support voice, with calm confidence and practical clarity.
 """
     return remove_source_section(_call_gemini_with_fallback(api_key, prompt))
+
+
+def extract_text_from_gemini_response(response: Any) -> str:
+    """Extract only actual text from Gemini responses while ignoring metadata like thought_signature."""
+    if response is None:
+        return ""
+
+    text = getattr(response, "text", None)
+    if isinstance(text, str) and text.strip():
+        return text
+
+    candidates = getattr(response, "candidates", None)
+    if candidates:
+        for candidate in candidates:
+            content = getattr(candidate, "content", None)
+            parts = getattr(content, "parts", None) or []
+            extracted = "".join(
+                part.text for part in parts if getattr(part, "text", None)
+            )
+            if extracted.strip():
+                return extracted
+
+    content = getattr(response, "content", None)
+    if content is not None:
+        parts = getattr(content, "parts", None) or []
+        extracted = "".join(part.text for part in parts if getattr(part, "text", None))
+        if extracted.strip():
+            return extracted
+
+    output_text = getattr(response, "output_text", None) or getattr(response, "outputText", None)
+    if isinstance(output_text, str) and output_text.strip():
+        return output_text
+
+    return str(response)
 
 
 def _generate_gemini_once(api_key: str, prompt: str, model_name: str) -> str:
@@ -100,18 +142,13 @@ def _generate_gemini_once(api_key: str, prompt: str, model_name: str) -> str:
                 model=model_name,
                 input=prompt,
             )
-            return (
-                getattr(response, "output_text", None)
-                or getattr(response, "outputText", None)
-                or getattr(response, "text", None)
-                or str(response)
-            )
+            return extract_text_from_gemini_response(response)
 
         response = client.models.generate_content(
             model=model_name,
             contents=prompt,
         )
-        return getattr(response, "text", str(response))
+        return extract_text_from_gemini_response(response)
 
     except ImportError:
         import google.generativeai as legacy_genai
@@ -119,7 +156,7 @@ def _generate_gemini_once(api_key: str, prompt: str, model_name: str) -> str:
         legacy_genai.configure(api_key=api_key)
         model = legacy_genai.GenerativeModel(model_name)
         response = model.generate_content(prompt)
-        return getattr(response, "text", str(response))
+        return extract_text_from_gemini_response(response)
 
 
 def _call_model_with_retries(api_key: str, prompt: str, model_name: str, role: str) -> str:

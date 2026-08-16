@@ -97,6 +97,26 @@ def load_index_bundle() -> Dict[str, Any]:
     return {"chunks": chunks, "bm25": bm25, "bm25_indexes": build_bm25_indexes(chunks), "faiss": load_faiss_index()}
 
 
+def _boost_section_relevance(text: str, query: str) -> float:
+    lowered_query = query.lower()
+    lowered_text = text.lower()
+    priority_terms = [
+        "objective",
+        "eligibility",
+        "process",
+        "applicability",
+        "scope",
+        "requirements",
+        "procedure",
+        "criteria",
+    ]
+    score = 0.0
+    for term in priority_terms:
+        if term in lowered_query and term in lowered_text:
+            score += 0.75
+    return score
+
+
 def hybrid_retrieve(
     query: str,
     chunks: List[Dict[str, Any]],
@@ -117,7 +137,8 @@ def hybrid_retrieve(
         bm25 = bm25_score(query, text, bm25_index["idf"], bm25_index["avgdl"], len(tokenize(text)))
         token_overlap = sum(1 for token in set(tokenize(query)) if token in set(tokenize(text)))
         semantic_score = 1.0 if token_overlap else 0.0
-        total = bm25 + semantic_score * 2.0 + token_overlap * 0.25
+        section_boost = _boost_section_relevance(text, query)
+        total = bm25 + semantic_score * 2.0 + token_overlap * 0.25 + section_boost
         scored.append((total, chunk))
 
     ranked = [chunk for _, chunk in sorted(scored, key=lambda item: item[0], reverse=True)]

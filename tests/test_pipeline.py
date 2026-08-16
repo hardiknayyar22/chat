@@ -72,3 +72,53 @@ def test_context_is_limited_before_prompting():
     context = build_context(chunks, "How can employees report harassment?")
 
     assert len(context) <= 4
+
+
+def test_objective_keyword_chunks_are_preferred():
+    chunks = [
+        {
+            "chunk_id": "header",
+            "policy_name": "Performance Improvement Plan (Pip) Policy I 2025",
+            "section": "Performance Improvement Plan (PIP) Policy - 2025",
+            "text": "Performance Improvement Plan (PIP) Policy - 2025 Table of Contents 1.0 Objective 2.0 Eligibility 3.0 Process Workflow",
+        },
+        {
+            "chunk_id": "objective",
+            "policy_name": "Performance Improvement Plan (Pip) Policy I 2025",
+            "section": "Performance Improvement Plan (PIP) Policy - 2025",
+            "text": "1.0 Objective. The aim of this policy is to address and manage employee underperformance. It is initiated when written or verbal feedback has not led to expected improvement in performance.",
+        },
+    ]
+
+    context = build_context(chunks, "Tell me about the objectives of the PIP policy")
+
+    assert context and "objective" in (context[0].get("text") or "").lower()
+    assert "table of contents" not in (context[0].get("text") or "").lower()
+
+
+def test_real_pip_sections_are_kept_in_context():
+    chunks = [
+        {
+            "chunk_id": "toc",
+            "policy_name": "Performance Improvement Plan (Pip) Policy I 2025",
+            "section": "Performance Improvement Plan (PIP) Policy - 2025",
+            "text": "Table of Contents 1.0 Objective 2.0 Eligibility 3.0 Process Workflow",
+        },
+        {
+            "chunk_id": "actual_objective",
+            "policy_name": "Performance Improvement Plan (Pip) Policy I 2025",
+            "section": "Performance Improvement Plan (PIP) Policy - 2025",
+            "text": "1.0 Objective. The aim of this policy is to address and manage employee underperformance. It is initiated when written or verbal feedback has not led to expected improvement in performance.",
+        },
+        {
+            "chunk_id": "actual_eligibility",
+            "policy_name": "Performance Improvement Plan (Pip) Policy I 2025",
+            "section": "Performance Improvement Plan (PIP) Policy - 2025",
+            "text": "2.0 Eligibility. This policy is applicable for all regular, full-time and part-time employees working in India at Coforge Limited and its subsidiaries.",
+        },
+    ]
+
+    context = build_context(chunks, "tell me about the objectives and eligibility of the pip policy")
+
+    assert any("1.0 objective" in (item.get("text") or "").lower() for item in context)
+    assert any("2.0 eligibility" in (item.get("text") or "").lower() for item in context)

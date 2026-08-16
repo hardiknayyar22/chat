@@ -36,6 +36,39 @@ def build_prompt(query: str, chunks) -> str:
     )
 
 
+def extract_text_from_gemini_response(response) -> str:
+    if response is None:
+        return ""
+
+    text = getattr(response, "text", None)
+    if isinstance(text, str) and text.strip():
+        return text
+
+    candidates = getattr(response, "candidates", None)
+    if candidates:
+        for candidate in candidates:
+            content = getattr(candidate, "content", None)
+            parts = getattr(content, "parts", None) or []
+            extracted = "".join(
+                part.text for part in parts if getattr(part, "text", None)
+            )
+            if extracted.strip():
+                return extracted
+
+    content = getattr(response, "content", None)
+    if content is not None:
+        parts = getattr(content, "parts", None) or []
+        extracted = "".join(part.text for part in parts if getattr(part, "text", None))
+        if extracted.strip():
+            return extracted
+
+    output_text = getattr(response, "output_text", None) or getattr(response, "outputText", None)
+    if isinstance(output_text, str) and output_text.strip():
+        return output_text
+
+    return str(response)
+
+
 def _call_gemini(prompt: str) -> str:
     from google import genai
     from google.genai import errors
@@ -52,7 +85,7 @@ def _call_gemini(prompt: str) -> str:
                 contents=prompt,
                 config={"system_instruction": SYSTEM_PROMPT, "max_output_tokens": 600},
             )
-            return response.text
+            return extract_text_from_gemini_response(response)
         except errors.ServerError as e:
             if e.status_code == 503 and attempt < max_retries - 1:
                 # Exponential backoff: 2s, 4s, 8s
