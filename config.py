@@ -6,7 +6,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
+ENV_PATH = BASE_DIR / ".env"
+
+if ENV_PATH.exists():
+    try:
+        raw = ENV_PATH.read_text(encoding="utf-8-sig")
+        if raw.startswith("\ufeff"):
+            ENV_PATH.write_text(raw.lstrip("\ufeff"), encoding="utf-8")
+    except Exception:
+        pass
+
+load_dotenv(ENV_PATH, override=False)
 
 POLICY_DOCS_DIR = BASE_DIR / "data" / "policies"
 INDEX_DIR = BASE_DIR / "indexes"
